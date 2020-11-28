@@ -60,6 +60,13 @@ impl <T> Receiver<T> {
   }
 }
 
+impl<T> Iterator for Receiver<T> {
+  type Item = T;
+  fn next(&mut self) -> Option<Self::Item> {
+    self.receive(); 
+  }
+}
+
 struct Inner<T> {
   queue: VecDeque<T>,
   senders: usize,
@@ -103,9 +110,16 @@ mod tests {
   }
 
   #[test]
-  fn closed(){
+  fn closed_tx(){
     let (tx, mut rx) = channel::<()>();
     drop(tx);
     assert_eq!(rx.receive(), None);
+  }
+
+  #[test]
+  fn closed_rx(){
+    let (mut tx, rx) = channel::<()>();
+    drop(rx);
+    tx.send(42);
   }
 }

@@ -25,3 +25,5 @@
 - `wait` gives a mutex guard back. If you get woken up, you automatically get handed the mutex. Thus, to use wait, you must pass in a guard. On a `condvar`  
 - Async/Await is generally when you are I/O bound not CPU bound
 - `notify_one()` does not guarantee which thread will be woken up
+- `Arc::strong_count(self)` gives how many references there are to that arc. 
+- Generally shouldn't wake up threads unless you need to (related to performance rather than correctness)

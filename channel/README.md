@@ -1,5 +1,5 @@
 # Channels
-## Via Jon Gjengset's Crust of Rust: Channels
+## Via Jon Gjengset's Crust of Rust: Channels 
 - Channels are a way to send information from one place to another
 - `std::sync::mpsc` - Multi Producer Single Consumer -> Many senders, one receiver
 - Receiver type, Sender type, SyncSender type
@@ -31,4 +31,25 @@
 - `sync_channel`: takes a `usize` bound which is the channel's capacity, returns a `SyncSender` and `Receiver`. 
 - `weak` is a version of `Arc` that doesn't increment the reference count, but you have a way to try to update the reference count if the reference count hasn't already gotten down to zero. One downside of `weak` is everytime you try to send you have to atomically update the reference count and decrement it after which adds overhead.
 
-- Calling push_back on a `vector` is not necessarily free as the data structure might to be allocated elsewhere (while the previous instance is deallocated). Resizing isn't blocking, the resize takes longer and in the meantime you can't do sends or receives. In practice, you don't use a deque.  
+- Calling push_back on a `vector` is not necessarily free as the data structure might to be allocated elsewhere (while the previous instance is deallocated). Resizing isn't blocking, the resize takes longer and in the meantime you can't do sends or receives. In practice, you don't use a deque. 
+
+## Optimization of receiver 1:07:38 
+- Because there's only one receiver, any time you take the lock you should take all the items that have been queued up rather than just the one because no one else is going to take them. If you call receive again, you can just call a local buffer of the things that were taken last time. So whenever someone calls receive, check the last time we took the lock and if there were leftover items at the time, and if so return from there you don't need to take the lock. 
+- If the buffer is empty, then take the lock. If you do take the lock, try to take the front item. If the queue is empty do the same thing as before and wait. But if it's not empty, then check if there are more items in the queue, and if there are take ownership of all of them. Swap that vec deque, with the one we've buffered inside of ourselves
+- Thus instead of taking the lock on every receive, we only take the lock once every time there were no additional sends between locks.
+- It is true that it may double the memory because you have two vec deques that are both growing as you add more items, and you'll be swapping between them
+- The lock is taken fewer times, so the lock will be faster to acquire
+
+- `Branch predictor`: the CPU has a built-in component that observes conditional jumps, and it tries to remember whether it took the branch or not the branch last time it was here, whereby speculative execution comes into play. If it runs the code again, the branch predictor will whether or not it'll take the branch so start running the code under the assumption that it will or won't. If it doesn't end up doing that, then go back and unwind what was done and do the other stuff instead.
+
+## Channel Flavors
+- The idea behind flavors is you have multiple implementations of channels and you choose the channel based on how it's used
+- Synchronous Channels: Channel where `send()` can block, limited capacity. Sometimes called Bounded channels. Implemented with mutex + condvar. Use a vecdeque, have the sender block if the vecdeque is full. If you don't want to use a mutex, use an atomic queue/vecdeque, with head and tail pointers. And update the pointers atomically.
+- Asynchronous Channels: Channel where `send()` cannot block, usually unbounded capacity (any number of sends). Sometimes called Unbounded channels. Mutex + Condvar + LinkedList, so that you never resize and just push to the front of the LinkList. The receiver steals the entire linkedlist, setting the head to none, and walks it backwards (so sometimes implemented as a Doubly LinkedList). Doesn't have the memory problems that vecdeque does. For a non-mutex solution, use an `AtomicLinkedList` or `AtomicQueue`. 
+- Rendezvous Channels: Synchronous channel with capacity = 0. Doesn't let you send things, usually used to synchronize two sides, thread syncing. What capacity zero means is you can only send if there's a currently blocking receiver because you can't store anything in the channel itself. So the only way to send is to hand it over to a thread that's currently waiting. It is not a mutex, because it does not guarantee mutual exclusion. Sort of like a convar in that you can wake up a thread. Kind of like a baton pass.
+- Oneshot Channels: Channels that you only send on once. Any capacity, in practice only one call to `send()`. E.g. an application with a channel used to tell all threads to exit early like when a user ctrl-c's a program. 
+
+
+## Async / Await
+- If you do a send and the channel is full, in the async/await world, you don't want to block you want to yield to the parent executor/task, and at some point in the future you'll be woken up to pull again. Sounds like waiting on a Condvar, but not the same because you need to return instead of sitting in the current function. 
+- Flume and Crossbeam have both blocking and async versions, requiring more book-keeping

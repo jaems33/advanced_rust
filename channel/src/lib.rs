@@ -1,3 +1,8 @@
+/* 
+  From Crust of Rust: Smart Pointers and Interior Mutability
+  https://www.youtube.com/watch?v=b4mS5UPHh20
+*/
+
 use std::collections::VecDeque;
 use std::sync::{Arc, Condvar, Mutex};
 

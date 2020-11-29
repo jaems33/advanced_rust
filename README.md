@@ -1,4 +1,4 @@
-# Advanced Rust
+# Advanced (and Intermediate) Rust
 
 Code snippets from YouTube tutorials related to Rust.
 

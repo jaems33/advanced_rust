@@ -1,6 +1,5 @@
 # Linked List
 ## From [A Singly Linked List in Rust by Ryan Levick](https://www.youtube.com/watch?v=IiDHTIsmUi4)
-- 
 - In C++, a node you'd normally have two properties of a simple linked list: A value, and a pointer to another Node that either exists or is null
 - Rust doesn't have null
 - Everything in Rust is Stack allocated, so when you create a Node Rust needs to know how much space it's going to take. So the tricky part in having `NonEmpty(u32, Node)` as an enum variant is that you could have any number of NonEmpty's
